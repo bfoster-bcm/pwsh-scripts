@@ -1,20 +1,48 @@
+#Requires -RunAsAdministrator
+
 class NewUserDetails {
-    [string] $FirstName
-    [string] $LastName
+    hidden [string] $FirstName
+    hidden [string] $LastName
     [string] $DisplayName
     [string] $UserName
+    hidden [string] $OrgUnit
+    hidden [string] $Domain = "brigadecapital.com"
+    hidden [string] $RemoteRouteDomain = "brigadecapital.mail.onmicrosoft.com"
+    [string] $Upn
+    [string] $RemoteRoutingAddress
+    
 
     NewUserDetails(
         [string] $firstName,
         [string] $lastName
     ) {
+        $ou = "OU=Users,OU=NY,OU=Brigade,DC=corp,DC=brigadecapital,DC=com"
+        $this.Init($firstName, $lastName, $ou)
+    }
+
+    NewUserDetails(
+        [string] $firstName,
+        [string] $lastName,
+        [string] $OrgUnit
+    ) {
+        $this.Init($firstName, $lastName, $OrgUnit)
+    }
+
+    hidden Init(
+        [string] $firstName,
+        [string] $lastName,
+        [string] $OrgUnit
+    ) {
         $formattedFirst = $firstName[0].ToString().ToUpper() + $firstName.Substring(1)
         $formattedLast = $lastName[0].ToString().ToUpper() + $lastName.Substring(1)
 
-        $this.FirstName        = $formattedFirst
-        $this.LastName         = $formattedLast
-        $this.DisplayName      = "$formattedFirst $formattedLast"
-        $this.UserName         = "$($formattedFirst[0])$formattedLast"
+        $this.FirstName                = $formattedFirst
+        $this.LastName                 = $formattedLast
+        $this.DisplayName              = "$formattedFirst $formattedLast"
+        $this.UserName                 = "$($formattedFirst[0])$formattedLast"
+        $this.OrgUnit                  = $OrgUnit
+        $this.Upn                      = "$($this.UserName)@$($this.Domain)"
+        $this.RemoteRoutingAddress     = "$($this.UserName)@$($this.RemoteRouteDomain)"
     }
 }
 
@@ -23,69 +51,33 @@ function Get-UserDetails {
     [OutputType([NewUserDetails])]
     $rawFirst = Read-Host -Prompt "Enter user's first name"
     $rawLast = Read-Host -Prompt "Enter user's last name"
+    $OrgUnit = Read-Host "Enter OU [Default: OU=Users,OU=NY,OU=Brigade,DC=corp,DC=brigadecapital,DC=com]"
+    if (-not $OrgUnit) { $OrgUnit = "OU=Users,OU=NY,OU=Brigade,DC=corp,DC=brigadecapital,DC=com" }
 
-    $user = [NewUserDetails]::new($rawFirst, $rawLast)
+    $user = [NewUserDetails]::new($rawFirst, $rawLast, $OrgUnit)
 
     return $user
 }
 
-function Is-ExistingUser {
-    param(
-        [Parameter(Mandatory = $true)]
-        [string]$Username
-    )
-
-    $existing = Get-Recipient -Identity $Username -ErrorAction SilentlyContinue
-
-    if ($existing) {
-        return $true
-    }
-
-    return $false
-}
 
 function New-BCMUser {
     param(
         [Parameter(Mandatory = $true)]
         [NewUserDetails]$Details
     )
-
-    $newUpn = "$($Details.UserName)@brigadecapital.com"
-    $newRemoteRoutingAddress = "$($Details.UserName)@brigadecapital.mail.onmicrosoft.com"
-    $ou = "OU=Users,OU=NY,OU=Brigade,DC=corp,DC=brigadecapital,DC=com"
-    # If user with the same UPN already exists, exit. Otherwise, create new user in Exchange
-    $IsExistingUser = Is-ExistingUser -Username $newUpn
-    if ($IsExistingUser) {
-        throw "User with UPN of '$newUpn' already exists"
-    }
-    Write-Host "Creating user object for '$($Details.DisplayName)':"
-    Write-Host "Name: $($Details.DisplayName)"
-    Write-Host "UPN: $newUpn"
-    Write-Host "OU: $ou"
-    Write-Host "Remote routing address: $newRemoteRoutingAddress"
-    Write-Host "Reset pwd on next login: $false"
     
-    $mailbox = New-RemoteMailbox -Name "Test User" `
+    $mailbox = New-RemoteMailbox -Name $Details.DisplayName `
         -FirstName $Details.FirstName `
         -LastName $Details.LastName `
         -DisplayName $Details.DisplayName `
-        -UserPrincipalName $newUpn `
-        -OnPremisesOrganizationalUnit $ou `
+        -UserPrincipalName $Details.Upn `
+        -OnPremisesOrganizationalUnit $Details.OrgUnit `
         -Password (ConvertTo-SecureString "HelloHappyLine26!" -AsPlainText -Force) `
         -ResetPasswordOnNextLogon $false `
-        -RemoteRoutingAddress $newRemoteRoutingAddress
+        -RemoteRoutingAddress $Details.RemoteRoutingAddress
     
     return $mailbox
 }
-
-# MAIN EXECUTION
-
-# Enforce execution from elevated prompt
-$isAdmin = ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
-    if (-not $isAdmin) {
-        Write-Host "You must run this script from an elevated prompt as an Exchange-privileged admin..." -ForegroundColor Red
-        exit
-    }
 
 
 try {
@@ -107,7 +99,10 @@ try {
 
     $newMailbox = New-BCMUser -Details $NewUserDetails
 
+    # print success message; if mailbox creation fails, it will be handled by the catch
+    Write-Host "Successfully created new user mailbox" -ForegroundColor Green
     $newMailbox
+
     
 }
 catch {
