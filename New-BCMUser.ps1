@@ -1,5 +1,7 @@
 #Requires -RunAsAdministrator
 
+#TODO: Implement contact information data (street, city, zip, work phone, personal phone, etc.)
+#TODO: Incorporate organizational data input like title, department, company, etc.)
 class NewUserDetails {
     hidden [string] $FirstName
     hidden [string] $LastName
