@@ -68,13 +68,15 @@ function New-BCMUser {
         [NewUserDetails]$Details
     )
     
+    $pass = Read-Host -Prompt "Enter password for $($Details.DisplayName)" -AsSecureString
+
     $mailbox = New-RemoteMailbox -Name $Details.DisplayName `
         -FirstName $Details.FirstName `
         -LastName $Details.LastName `
         -DisplayName $Details.DisplayName `
         -UserPrincipalName $Details.Upn `
         -OnPremisesOrganizationalUnit $Details.OrgUnit `
-        -Password (ConvertTo-SecureString "HelloHappyLine26!" -AsPlainText -Force) `
+        -Password $pass `
         -ResetPasswordOnNextLogon $false `
         -RemoteRoutingAddress $Details.RemoteRoutingAddress
     
