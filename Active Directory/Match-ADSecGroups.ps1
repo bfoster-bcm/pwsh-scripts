@@ -17,6 +17,7 @@
     Match-ADSecGroups.ps1 -NewUser $newUser -ExistingUser $existingUser
 
 #>
+#Requires -RunAsAdministrator
 
 param(
     [Parameter(Mandatory)]
