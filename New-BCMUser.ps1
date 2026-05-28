@@ -48,10 +48,16 @@ class NewUserDetails {
     }
 }
 
+function Get-NewPassword {
+    [OutputType([string])]
+    $pass = Read-Host -Prompt "Enter password for $($Details.DisplayName)" -AsSecureString
+    return $pass
+}
+
 
 function Get-UserDetails {
     [OutputType([NewUserDetails])]
-    $rawFirst = Read-Host -Prompt "Enter user's first name"
+    $rawFirst = Read-Host -Prompt "Enter user's first namde"
     $rawLast = Read-Host -Prompt "Enter user's last name"
     $OrgUnit = Read-Host "Enter OU [Default: OU=Users,OU=NY,OU=Brigade,DC=corp,DC=brigadecapital,DC=com]"
     if (-not $OrgUnit) { $OrgUnit = "OU=Users,OU=NY,OU=Brigade,DC=corp,DC=brigadecapital,DC=com" }
@@ -68,7 +74,7 @@ function New-BCMUser {
         [NewUserDetails]$Details
     )
     
-    $pass = Read-Host -Prompt "Enter password for $($Details.DisplayName)" -AsSecureString
+    $pass = Get-NewPassword
 
     $mailbox = New-RemoteMailbox -Name $Details.DisplayName `
         -FirstName $Details.FirstName `
