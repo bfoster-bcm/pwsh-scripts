@@ -18,6 +18,7 @@ class NewUserDetails {
     [string] $RemoteRoutingAddress
     [string] $M365License
     [string] $VdiPool
+    hidden [string] $HomeDirectory
 
     static [string[]] $ValidLicenses = @("M365 E3 Licenses", "M365 E5 Unified License")
     static [string[]] $ValidVdiPools = @("ViewPool_PROD-PD01", "ViewPool_PROD-PD03")
@@ -74,6 +75,7 @@ class NewUserDetails {
         $this.RemoteRoutingAddress     = "$($this.UserName)@$($this.RemoteRouteDomain)"
         $this.M365License              = $m365License
         $this.VdiPool                  = $vdiPool
+        $this.HomeDirectory            = "C:\Users\$($this.UserName)\OneDrive - Brigade Capital Management"
     }
 }
 
@@ -125,6 +127,8 @@ function New-BCMUser {
         -ResetPasswordOnNextLogon $false `
         -RemoteRoutingAddress $Details.RemoteRoutingAddress
 
+    Start-Sleep -Seconds 5
+
     try {
         if ($Details.M365License) {
             Add-ADGroupMember -Identity $Details.M365License -Members $Details.UserName
@@ -136,6 +140,12 @@ function New-BCMUser {
         } else {
             Write-Warning "VDI pool not set for $($Details.DisplayName) - skipping VDI pool group assignment."
         }
+        if ($Details.HomeDirectory) {
+            Write-Host "Setting $($Details.DisplayName) home directory to $($Details.HomeDirectory)"
+            Set-ADUser -Identity $Details.UserName -HomeDirectory $Details.HomeDirectory
+        } else {
+            Write-Warning "Home directory not set for $($Details.DisplayName) - skipping home directory specification."
+        }
     } catch [Microsoft.ActiveDirectory.Management.ADIdentityNotFoundException] {
         Write-Warning "AD object for $($Details.DisplayName) not found yet - group memberships skipped. Assign manually once sync completes."
     }
@@ -145,7 +155,7 @@ function New-BCMUser {
 
 
 try {
-    # Set up connection to 
+    # Set up connection to on-prem exchange server.
     $AdminUsername = $env:USERNAME
     $AdminUserCred = Get-Credential $AdminUsername
     $ExchangeConnectionUri = "http://njinf-exch01.corp.brigadecapital.com/PowerShell/"
