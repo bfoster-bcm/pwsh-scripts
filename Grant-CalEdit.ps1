@@ -1,4 +1,4 @@
-#Requires -RunAsAdministrator
+
 <#
 .SYNOPSIS
     Adds user as an editor to target calendar
@@ -32,19 +32,8 @@ param (
 )
 
 try {
-    # Set up connection to on-prem exchange server.
     $AdminUsername = $env:USERNAME
-    $AdminUserCred = Get-Credential $AdminUsername
-    $ExchangeConnectionUri = "http://njinf-exch01.corp.brigadecapital.com/PowerShell/"
-    try {
-        $ExchangeSession = New-PSSession -ConfigurationName Microsoft.Exchange -ConnectionUri $ExchangeConnectionUri -Credential $AdminUserCred -Authentication Kerberos -ErrorAction Stop
-        Import-PSSession $ExchangeSession -DisableNameChecking | Out-Null
-    }
-    catch {
-        Write-Host "An error occurred. Stopping script..." -ForegroundColor Red
-        throw 
-    }
-
+    Connect-ExchangeOnline -UserPrincipalName "$($AdminUsername)_adm@brigadecapital.com"
     Add-MailboxFolderPermission -Identity $Calendar -User $Grantee -AccessRights Editor
 } catch {
     Write-Error "Error: $($_.Exception)"
