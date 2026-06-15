@@ -112,11 +112,11 @@ foreach ($cert in $certs) {
 Write-Log "Scheduling automatic reboot in 30 minutes"
 try {
     $rebootTime = (Get-Date).AddMinutes(30)
-    $rebootAction   = New-ScheduledTaskAction -Execute "shutdown.exe" -Argument "/r /t 0"
-    $rebootTrigger  = New-ScheduledTaskTrigger -Once -At $rebootTime
+    $rebootAction    = New-ScheduledTaskAction -Execute "shutdown.exe" -Argument "/r /t 0"
+    $rebootTrigger   = New-ScheduledTaskTrigger -Once -At $rebootTime
     $rebootPrincipal = New-ScheduledTaskPrincipal -UserId "SYSTEM" -RunLevel Highest -LogonType ServiceAccount
-    $rebootSettings = New-ScheduledTaskSettingsSet -DeleteExpiredTaskAfter "00:00:01" -ExecutionTimeLimit "00:05:00"
-    Register-ScheduledTask -TaskName "IntuneReset-Reboot" -Action $rebootAction -Trigger $rebootTrigger -Principal $rebootPrincipal -Settings $rebootSettings -Force | Out-Null
+    $rebootSettings  = New-ScheduledTaskSettingsSet -ExecutionTimeLimit "00:05:00"
+    Register-ScheduledTask -TaskName "IntuneReset-Reboot" -Action $rebootAction -Trigger $rebootTrigger -Principal $rebootPrincipal -Settings $rebootSettings -Force -ErrorAction Stop | Out-Null
     Write-Log "Reboot task registered — system will restart at $rebootTime"
 } catch {
     Write-Log "Failed to schedule reboot task: $($_.Exception)" -Level "ERROR"
@@ -126,12 +126,12 @@ try {
 Write-Log "Scheduling dsregcmd /join task to run at next logon"
 try {
     $joinTaskName = "IntuneReset-DsregJoin"
-    $joinArg      = "-NonInteractive -NoProfile -WindowStyle Hidden -Command `"dsregcmd /join; Unregister-ScheduledTask -TaskName '$joinTaskName' -Confirm:`$false`""
-    $joinAction   = New-ScheduledTaskAction -Execute "powershell.exe" -Argument $joinArg
+    $joinArg      = "/c dsregcmd /join & schtasks /Delete /TN $joinTaskName /F"
+    $joinAction   = New-ScheduledTaskAction -Execute "cmd.exe" -Argument $joinArg
     $joinTrigger  = New-ScheduledTaskTrigger -AtLogOn
     $joinPrincipal = New-ScheduledTaskPrincipal -UserId "SYSTEM" -RunLevel Highest -LogonType ServiceAccount
     $joinSettings = New-ScheduledTaskSettingsSet -ExecutionTimeLimit "00:05:00"
-    Register-ScheduledTask -TaskName $joinTaskName -Action $joinAction -Trigger $joinTrigger -Principal $joinPrincipal -Settings $joinSettings -Force | Out-Null
+    Register-ScheduledTask -TaskName $joinTaskName -Action $joinAction -Trigger $joinTrigger -Principal $joinPrincipal -Settings $joinSettings -Force -ErrorAction Stop | Out-Null
     Write-Log "dsregcmd /join task registered — will run as SYSTEM at next logon and self-delete"
 } catch {
     Write-Log "Failed to schedule dsregcmd /join task: $($_.Exception)" -Level "ERROR"
