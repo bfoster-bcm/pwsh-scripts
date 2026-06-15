@@ -72,6 +72,7 @@ foreach ($id in $enrollmentIds) {
             $keyPath = $template -f $id
             if (Test-Path $keyPath) {
                 Remove-Item -Path $keyPath -Recurse -WhatIf
+                Write-Host "Successfully removed key at $keyPath"
             }
         } catch {
             Write-Error "Error removing registry key: $($_.Exception)."
