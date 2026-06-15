@@ -45,15 +45,15 @@ foreach ($task in $taskset) {
     try {
         # Remove tasks in folder
         Write-Log "Removing tasks at $task"
-        Get-ScheduledTask -TaskPath $task | Unregister-ScheduledTask -Confirm:$False -WhatIf
+        Get-ScheduledTask -TaskPath $task | Unregister-ScheduledTask -Confirm:$False
 
         # Remove empty folder
         $folder_guid = Split-Path -Path $task -Leaf
         $sc = New-Object -ComObject Schedule.Service
         $sc.Connect()
         $root = $sc.GetFolder("\Microsoft\Windows\EnterpriseMgmt")
-        ($root.GetTasks(1)).Path # comment this line out after testing - this line proves we're connected to the right tasks folder
-        #$root.DeleteFolder($folder_guid, 0) # uncomment for production use
+        #($root.GetTasks(1)).Path # comment this line out after testing - this line proves we're connected to the right tasks folder
+        $root.DeleteFolder($folder_guid, 0) # uncomment for production use
     } catch {
         Write-Log "Error: $($_.Exception)" -Level "ERROR"
     }
@@ -83,7 +83,7 @@ foreach ($id in $enrollmentIds) {
         try {
             $keyPath = $template -f $id
             if (Test-Path $keyPath) {
-                Remove-Item -Path $keyPath -Recurse -WhatIf
+                Remove-Item -Path $keyPath -Recurse
                 Write-Log "Successfully removed key at $keyPath"
             }
         } catch {
@@ -100,7 +100,7 @@ $certs = Get-ChildItem Cert:\LocalMachine\My | Where-Object { $_.Issuer -like "C
 foreach ($cert in $certs) {
     Write-Log "Deleting certificate $($cert.Thumbprint) from issuer: $($cert.Issuer)"
     try {
-        Remove-Item -Path $cert.PSPath -WhatIf
+        Remove-Item -Path $cert.PSPath
         Write-Log "Successfully deleted certificate $($cert.Thumbprint) from issuer: $($cert.Issuer)"
     } catch {
         Write-Log "Error deleting certificate $($cert.Thumbprint) from issuer: $($cert.Issuer): $($_.Exception)." -Level "ERROR"
