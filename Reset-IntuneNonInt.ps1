@@ -1,6 +1,7 @@
 #Requires -RunAsAdministrator
 
 param (
+    [Parameter(Mandatory)]
     [string]$LogPath
 )
 
