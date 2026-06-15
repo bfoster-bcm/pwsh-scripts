@@ -107,5 +107,34 @@ foreach ($cert in $certs) {
     }
 }
 
-Write-Log "Be sure to manually remove tasks, registry keys, and certificates that may have failed."
-Write-Log "Script complete! Please reboot at your earliest convenience. Once rebooted, run 'dsregcmd /join' from an elevated prompt."
+# Schedule automatic reboot 30 minutes from now
+Write-Log "Scheduling automatic reboot in 30 minutes"
+try {
+    $rebootTime = (Get-Date).AddMinutes(30)
+    $rebootAction   = New-ScheduledTaskAction -Execute "shutdown.exe" -Argument "/r /t 0"
+    $rebootTrigger  = New-ScheduledTaskTrigger -Once -At $rebootTime
+    $rebootPrincipal = New-ScheduledTaskPrincipal -UserId "SYSTEM" -RunLevel Highest -LogonType ServiceAccount
+    $rebootSettings = New-ScheduledTaskSettingsSet -DeleteExpiredTaskAfter "00:00:01" -ExecutionTimeLimit "00:05:00"
+    Register-ScheduledTask -TaskName "IntuneReset-Reboot" -Action $rebootAction -Trigger $rebootTrigger -Principal $rebootPrincipal -Settings $rebootSettings -Force | Out-Null
+    Write-Log "Reboot task registered — system will restart at $rebootTime"
+} catch {
+    Write-Log "Failed to schedule reboot task: $($_.Exception)" -Level "ERROR"
+}
+
+# Schedule dsregcmd /join to run as SYSTEM at next logon (self-deletes after running)
+Write-Log "Scheduling dsregcmd /join task to run at next logon"
+try {
+    $joinTaskName = "IntuneReset-DsregJoin"
+    $joinArg      = "-NonInteractive -NoProfile -WindowStyle Hidden -Command `"dsregcmd /join; Unregister-ScheduledTask -TaskName '$joinTaskName' -Confirm:`$false`""
+    $joinAction   = New-ScheduledTaskAction -Execute "powershell.exe" -Argument $joinArg
+    $joinTrigger  = New-ScheduledTaskTrigger -AtLogOn
+    $joinPrincipal = New-ScheduledTaskPrincipal -UserId "SYSTEM" -RunLevel Highest -LogonType ServiceAccount
+    $joinSettings = New-ScheduledTaskSettingsSet -ExecutionTimeLimit "00:05:00"
+    Register-ScheduledTask -TaskName $joinTaskName -Action $joinAction -Trigger $joinTrigger -Principal $joinPrincipal -Settings $joinSettings -Force | Out-Null
+    Write-Log "dsregcmd /join task registered — will run as SYSTEM at next logon and self-delete"
+} catch {
+    Write-Log "Failed to schedule dsregcmd /join task: $($_.Exception)" -Level "ERROR"
+}
+
+Write-Log "Be sure to manually remove any tasks, registry keys, and certificates that may have failed."
+Write-Log "Script complete! System will reboot automatically in 30 minutes. After reboot, dsregcmd /join will run automatically at next logon."
