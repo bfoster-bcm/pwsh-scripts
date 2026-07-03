@@ -77,7 +77,6 @@ Foreach($App in $Apps) {
     #Get upcoming Sunday's date in MM/dd/yyyy format
     $MaintanenceSunday = (Get-Date -hour 0 -Minute 0 -Second 0).AddDays(7-((Get-Date).DayOfWeek.value__))
     $MaintenanceEnd = $MaintanenceSunday.AddHours(6)
-    $MaintenenceSunday
 
     #Get upcoming Sunday's Application Deployment Object Authentic8 Silo 2.9.16.8 Adobe Acrobat Reader DC 21.005.20058 Upd
     $ApplicationDeployment = Get-CMDeployment -SoftwareName $App  | Where-Object {$_.EnforcementDeadline -gt $MaintenanceSunday -and $_.EnforcementDeadline -lt $MaintenanceEnd}
