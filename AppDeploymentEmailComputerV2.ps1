@@ -72,7 +72,7 @@ Foreach($App in $Apps) {
 
     #Declare variables null
     $ClientHtml = $null
-    $PatchHtml = $null
+    #$PatchHtml = $null
 
     #Get upcoming Sunday's date in MM/dd/yyyy format
     $MaintanenceSunday = (Get-Date -hour 0 -Minute 0 -Second 0).AddDays(7-((Get-Date).DayOfWeek.value__))
