@@ -50,7 +50,7 @@
       - Install behavior: Install for System.
 
 .EXAMPLE
-    .\Install-VirtualHereClient-SCCM.ps1 -ServerAddress "it-rpi1.brigadecapital.com:7575"
+    .\Install-VirtualHereClient-SCCM.ps1 -ServerAddress "it-rpi1.corp.brigadecapital.com:7575"
 #>
 
 [CmdletBinding()]
@@ -61,6 +61,15 @@ param(
     [string]$ServerAddress    = "192.168.15.159:7575",  # host:port or EasyFind ID
     [string]$DeviceAddress    = $null                    # e.g. "it-rpi1.4" from LIST; leave blank to auto-use the whole hub
 )
+
+if ([string]::IsNullOrWhiteSpace($PackageSourceDir)) {
+    # $PSScriptRoot/$PSCommandPath have been observed to come back empty
+    # under some SCCM client execution paths for the Installation Program,
+    # even when invoked with "-File .\thisscript.ps1". The CM client does
+    # reliably set the process's working directory to the content cache
+    # folder before running the install command, so fall back to that.
+    $PackageSourceDir = (Get-Location).Path
+}
 
 $VHExePath = Join-Path $InstallDir "vhui64.exe"
 
@@ -94,6 +103,8 @@ function Invoke-VHCommand {
     }
     return $result
 }
+
+Write-Log -Level INFO -Message "PSScriptRoot='$PSScriptRoot' PSCommandPath='$PSCommandPath' PWD='$((Get-Location).Path)' PackageSourceDir(resolved)='$PackageSourceDir'"
 
 try {
     $currentPrincipal = New-Object Security.Principal.WindowsPrincipal([Security.Principal.WindowsIdentity]::GetCurrent())

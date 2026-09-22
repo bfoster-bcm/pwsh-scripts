@@ -131,12 +131,37 @@ try {
         Write-Log -Level INFO -Message "No VirtualHere service found - already removed, skipping."
     }
 
+    # --- Kill any vhui64.exe process still holding the binary open ----------
+    # Stopping/deleting the *service* doesn't touch a separate GUI instance
+    # launched from the Start Menu shortcut (Install-VirtualHereClient-SCCM.ps1
+    # points that shortcut at the same vhui64.exe) - if a user has that open,
+    # it locks the file and the install-dir removal below fails with
+    # "Access to the path 'vhui64.exe' is denied."
+    $vhProcesses = Get-Process -Name "vhui64" -ErrorAction SilentlyContinue
+    if ($vhProcesses) {
+        Write-Log -Level INFO -Message "Found $($vhProcesses.Count) running vhui64.exe process(es) - stopping before file removal."
+        Invoke-UninstallStep -Description "Stop vhui64.exe process(es)" -Action {
+            $vhProcesses | Stop-Process -Force -ErrorAction Stop
+        }
+        Start-Sleep -Seconds 2
+    }
+
     # --- Remove install directory (binary + config.ini) ---------------------
     Write-Log -Level INFO -Message "Checking install directory: $InstallDir"
     if (Test-Path -LiteralPath $InstallDir) {
         Invoke-UninstallStep -Description "Remove install directory '$InstallDir'" -Action {
-            Remove-Item -LiteralPath $InstallDir -Recurse -Force -ErrorAction Stop
-            Write-Log -Level INFO -Message "Removed $InstallDir"
+            $lastError = $null
+            for ($i = 0; $i -lt 3; $i++) {
+                try {
+                    Remove-Item -LiteralPath $InstallDir -Recurse -Force -ErrorAction Stop
+                    Write-Log -Level INFO -Message "Removed $InstallDir"
+                    return
+                } catch {
+                    $lastError = $_
+                    Start-Sleep -Seconds 2
+                }
+            }
+            throw $lastError
         }
     } else {
         Write-Log -Level INFO -Message "Install directory not present - already removed, skipping."

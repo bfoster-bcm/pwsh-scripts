@@ -74,14 +74,40 @@ if ($svc) {
     Write-Host "No VirtualHere service found - already removed, skipping."
 }
 
+# --- Kill any vhui64.exe process still holding the binary open --------------
+# Stopping/deleting the *service* doesn't touch a separate GUI instance
+# launched from the Start Menu shortcut (it points at the same vhui64.exe) --
+# if a user has that open, it locks the file and the removal below fails.
+$vhProcesses = Get-Process -Name "vhui64" -ErrorAction SilentlyContinue
+if ($vhProcesses) {
+    Write-Host "`nFound $($vhProcesses.Count) running vhui64.exe process(es) - stopping before file removal."
+    try {
+        $vhProcesses | Stop-Process -Force -ErrorAction Stop
+        Start-Sleep -Seconds 2
+    } catch {
+        Write-Warning "Failed to stop vhui64.exe process(es): $($_.Exception.Message)"
+        $hadWarnings = $true
+    }
+}
+
 # --- Remove install directory (binary + config.ini) -------------------------
 Write-Host "`nRemoving install directory: $InstallDir"
 if (Test-Path -LiteralPath $InstallDir) {
-    try {
-        Remove-Item -LiteralPath $InstallDir -Recurse -Force -ErrorAction Stop
-        Write-Host "Removed $InstallDir"
-    } catch {
-        Write-Warning "Failed to remove '$InstallDir': $($_.Exception.Message). It may be in use by a still-running vhui64.exe process -- close it and re-run this script."
+    $removed = $false
+    for ($i = 0; $i -lt 3 -and -not $removed; $i++) {
+        try {
+            Remove-Item -LiteralPath $InstallDir -Recurse -Force -ErrorAction Stop
+            $removed = $true
+            Write-Host "Removed $InstallDir"
+        } catch {
+            $lastError = $_
+            if ($i -lt 2) {
+                Start-Sleep -Seconds 2
+            }
+        }
+    }
+    if (-not $removed) {
+        Write-Warning "Failed to remove '$InstallDir': $($lastError.Exception.Message). It may be in use by a still-running vhui64.exe process -- close it and re-run this script."
         $hadWarnings = $true
     }
 } else {

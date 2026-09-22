@@ -25,7 +25,7 @@
       file you intended.
 
 .EXAMPLE
-    .\Install-VirtualHereClient.ps1 -ServerAddress "it-rpi1.brigadecapital.com:7575"
+    .\Install-VirtualHereClient.ps1 -ServerAddress "it-rpi1.corp.brigadecapital.com:7575"
 #>
 
 [CmdletBinding()]
