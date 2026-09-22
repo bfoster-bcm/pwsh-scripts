@@ -95,9 +95,16 @@ function Write-Log {
 
 function Invoke-VHCommand {
     param([string[]]$CommandArgs)
-    Write-Log -Level INFO -Message "Running: `"$VHExePath`" $($CommandArgs -join ' ')"
-    $result = & $VHExePath @CommandArgs 2>&1
+    # vhui64.exe pops a native message box with the result of a "-t" command
+    # (e.g. "USB server added") unless the result is redirected to a file with
+    # "-r" instead - since this runs unattended under SCCM, there's no one to
+    # dismiss that box. See https://www.virtualhere.com/node/660.
+    $outFile = Join-Path $env:TEMP "vh_$([guid]::NewGuid().ToString('N')).out"
+    Write-Log -Level INFO -Message "Running: `"$VHExePath`" $($CommandArgs -join ' ') -r `"$outFile`""
+    & $VHExePath @CommandArgs -r $outFile 2>&1 | Out-Null
     $exitCode = $LASTEXITCODE
+    $result = if (Test-Path -LiteralPath $outFile) { (Get-Content -LiteralPath $outFile -Raw).Trim() } else { '' }
+    Remove-Item -LiteralPath $outFile -Force -ErrorAction SilentlyContinue
     if ($exitCode -ne 0) {
         Write-Log -Level WARN -Message "Command '$($CommandArgs -join ' ')' returned exit code $exitCode : $result"
     }
