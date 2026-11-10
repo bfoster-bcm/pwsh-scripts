@@ -1,3 +1,21 @@
+<#
+.SYNOPSIS
+    Creates a new Brigade User account, following standard implementations.
+
+.DESCRIPTION
+    Interactive or scriptable module to support new user creation actions during tech onboarding. 
+    Administrators can use either CSV for bulk user creation
+
+    When using a CSV to bulk add users, use the following csv column configuration: firstName,lastName,M365_license,VDI_pool
+    M365_license = "M365 E3 Licenses" or "M365 E5 Unified License"
+    VDI_pool = "ViewPool_PROD-PD01" or "ViewPool_PROD-PD03"
+
+.EXAMPLE
+    .\New-BCMUser.ps1 
+
+.EXAMPLE
+    .\New-BCMUser.ps1 -CsvPath "C:\path\to\csv.csv"
+#>
 #Requires -RunAsAdministrator
 
 param(
